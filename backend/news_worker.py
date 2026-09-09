@@ -9,7 +9,7 @@ import ai_writer
 from news_provider_guard import provider_state
 
 log=logging.getLogger(__name__)
-DAILY_LIMIT=48
+DAILY_LIMIT=max(1,int(os.getenv('NEWS_AI_DAILY_LIMIT','200')))
 REFRESH_SECONDS=max(300,int(os.getenv('NEWS_REFRESH_SECONDS','900')))
 
 def enqueue():
@@ -17,6 +17,7 @@ def enqueue():
         conn.execute("""INSERT INTO news_ai_jobs(article_id,priority_at)
           SELECT a.id,a.published_at FROM news_articles a JOIN news_summaries s ON s.article_id=a.id AND s.language=a.source_language
           WHERE a.status='published' AND a.published_at<=now() AND NOT s.ai_generated
+          AND a.published_at >= now() - interval '30 days'
           ORDER BY a.published_at DESC LIMIT 200 ON CONFLICT(article_id) DO NOTHING""")
 
 def process_one():
