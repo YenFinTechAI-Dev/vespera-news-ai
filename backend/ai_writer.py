@@ -8,7 +8,7 @@ log=logging.getLogger(__name__)
 def _available():return ai_provider.available()
 def rewrite(original_title,excerpt,category,source_url):
     key=os.getenv('NEWS_ZAI_API_KEY') or os.getenv('CHAT_ZAI_API_KEY') or os.getenv('ZAI_API_KEY')
-    if not key and not ai_provider.local():return None
+    if not ai_provider.available():return None
     try:
         response=ai_provider.completion({
           'model':'glm-5.3','max_tokens':3072,'response_format':ai_provider.json_format('summary'),

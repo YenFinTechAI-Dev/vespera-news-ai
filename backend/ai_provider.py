@@ -14,15 +14,29 @@ def json_format(kind):
         schema={'type':'object','properties':{'paragraphs':{'type':'array','items':part,'minItems':1,'maxItems':6},'limitations':text},'required':['paragraphs','limitations'],'additionalProperties':False}
     return {'type':'json_schema','json_schema':{'name':kind,'strict':True,'schema':schema}}
 
-def local():return os.getenv('AI_PROVIDER','zai').lower()=='ollama'
-def model():return os.getenv('OLLAMA_MODEL','qwen2.5:3b') if local() else 'glm-5.3'
-def available():return local() or bool(os.getenv('NEWS_ZAI_API_KEY') or os.getenv('CHAT_ZAI_API_KEY') or os.getenv('ZAI_API_KEY'))
+def provider():return os.getenv('AI_PROVIDER','zai').strip().lower()
+def local():return provider()=='ollama'
+def model():
+    if local():return os.getenv('OLLAMA_MODEL','qwen2.5:3b')
+    if provider()=='huggingface':return os.getenv('HF_MODEL','Qwen/Qwen3-4B-Instruct-2507:nscale')
+    return 'glm-5.3'
+def available():
+    if local():return True
+    if provider()=='huggingface':return bool(os.getenv('HF_TOKEN','').strip())
+    return provider()=='zai' and bool(os.getenv('NEWS_ZAI_API_KEY') or os.getenv('CHAT_ZAI_API_KEY') or os.getenv('ZAI_API_KEY'))
 def completion(payload,key='',stream=False,timeout=None):
     data=dict(payload);data['model']=model()
     if local():
         url=os.getenv('OLLAMA_BASE_URL','http://127.0.0.1:11434').rstrip('/')+'/v1/chat/completions'
         headers={'Content-Type':'application/json'}
         data.setdefault('temperature',0.2)
-    else:
+    elif provider()=='huggingface':
+        token=os.getenv('HF_TOKEN','').strip()
+        if not token:raise ValueError('Hugging Face is not configured')
+        url='https://router.huggingface.co/v1/chat/completions'
+        headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'}
+        data.setdefault('temperature',0.2)
+    elif provider()=='zai':
         url='https://api.z.ai/api/paas/v4/chat/completions';headers={'Authorization':'Bearer '+key}
-    return requests.post(url,headers=headers,json=data,stream=stream,timeout=timeout or ((5,180) if local() else (10,90)))
+    else:raise ValueError('Unsupported AI provider')
+    return requests.post(url,headers=headers,json=data,stream=stream,timeout=timeout or ((5,180) if local() else (10,90)),allow_redirects=False)

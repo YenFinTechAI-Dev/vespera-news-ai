@@ -37,7 +37,7 @@ def news_status():
         summary=conn.execute("SELECT count(*) AS count FROM news_summaries WHERE language='vi' AND ai_generated=true").fetchone()['count']
         usage=conn.execute("SELECT attempts FROM news_ai_usage WHERE day=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::date").fetchone()
         resets=conn.execute("SELECT (date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok')+INTERVAL '1 day') AT TIME ZONE 'Asia/Bangkok' AS at").fetchone()['at']
-    return {'ai_provider':'ollama' if ai_provider.local() else 'zai','ai_model':ai_provider.model(),'provider':provider_state(),'ai_resets_at':resets,'sources':public_sources(),'pipeline':state,'categories':counts,'ai_ready':summary,'refresh_minutes':15,'ai_configured':ai_writer._available(),
+    return {'ai_provider':ai_provider.provider(),'ai_model':ai_provider.model(),'provider':provider_state(),'ai_resets_at':resets,'sources':public_sources(),'pipeline':state,'categories':counts,'ai_ready':summary,'refresh_minutes':15,'ai_configured':ai_writer._available(),
             'ai_daily_limit':DAILY_LIMIT,'ai_attempts_today':usage['attempts'] if usage else 0}
 
 @router.get('/news')

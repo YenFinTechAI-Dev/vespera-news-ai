@@ -66,7 +66,7 @@ def run(body,user):
     provider=provider_state()
     if provider and provider['blocked']:return dict(base,status='provider_paused',retry_at=provider['retry_at'],detail=('Tài khoản Z.ai không đủ số dư API (1113). Cần bổ sung số dư API trước khi tiếp tục.' if provider.get('reason')=='insufficient_balance' else 'Nhà cung cấp AI đang tạm giới hạn hoặc chưa chấp nhận khóa API. Nguồn tham khảo vẫn đọc và xuất được.'))
     key=os.getenv('NEWS_ZAI_API_KEY') or os.getenv('CHAT_ZAI_API_KEY') or os.getenv('ZAI_API_KEY')
-    if not key and not ai_provider.local():return dict(base,status='unconfigured',detail='Chưa cấu hình dịch vụ AI.')
+    if not ai_provider.available():return dict(base,status='unconfigured',detail='Chưa cấu hình dịch vụ AI.')
     with connection() as conn:
         lease=conn.execute("""INSERT INTO research_answers(user_id,request_hash,status) VALUES(%s,%s,'processing')
           ON CONFLICT(user_id,request_hash) DO UPDATE SET status='processing',updated_at=now()

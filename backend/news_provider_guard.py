@@ -5,19 +5,19 @@ from database import connection
 def provider_state():
     if ai_provider.local():return None
     with connection() as conn:
-        return conn.execute("SELECT reason,retry_at,http_status,(reason='insufficient_balance' OR retry_at>now()) AS blocked FROM news_provider_state WHERE id=1").fetchone()
+        return conn.execute("SELECT reason,retry_at,http_status,(reason='insufficient_balance' OR retry_at>now()) AS blocked FROM news_provider_state WHERE id=1 AND provider_name=%s",[ai_provider.provider()]).fetchone()
 
 def record_failure(status, code=None):
     if ai_provider.local():return
-    reason='insufficient_balance' if str(code)=='1113' else 'rate_limited' if status==429 else 'authorization' if status in (401,403) else 'temporary'
+    reason='insufficient_balance' if str(code)=='1113' or status==402 else 'rate_limited' if status==429 else 'authorization' if status in (401,403) else 'temporary'
     minutes=360 if reason=='authorization' else 30 if reason=='rate_limited' else 5
     with connection() as conn:
-        conn.execute("INSERT INTO news_provider_state(id,reason,http_status,retry_at) VALUES(1,%s,%s,now()+%s*INTERVAL '1 minute') ON CONFLICT(id) DO UPDATE SET reason=EXCLUDED.reason,http_status=EXCLUDED.http_status,retry_at=EXCLUDED.retry_at",[reason,status,minutes])
+        conn.execute("INSERT INTO news_provider_state(id,reason,http_status,retry_at,provider_name) VALUES(1,%s,%s,now()+%s*INTERVAL '1 minute',%s) ON CONFLICT(id) DO UPDATE SET reason=EXCLUDED.reason,http_status=EXCLUDED.http_status,retry_at=EXCLUDED.retry_at,provider_name=EXCLUDED.provider_name",[reason,status,minutes,ai_provider.provider()])
 
 def record_success():
     if ai_provider.local():return
     with connection() as conn:
-        conn.execute("UPDATE news_provider_state SET reason='ready',http_status=200,retry_at=now() WHERE id=1")
+        conn.execute("UPDATE news_provider_state SET reason='ready',http_status=200,retry_at=now() WHERE id=1 AND provider_name=%s",[ai_provider.provider()])
 
 
 def record_response_failure(response):
