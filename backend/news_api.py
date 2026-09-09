@@ -60,11 +60,11 @@ def list_news(category:Category|None=None,language:Language=Language.vi,
     try:
         with connection() as conn:
             conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-            total=conn.execute('SELECT count(*) AS count FROM news_articles a JOIN LATERAL (SELECT * FROM news_summaries ns WHERE ns.article_id=a.id ORDER BY (ns.language=%s) DESC LIMIT 1) s ON true WHERE '+conditions,params).fetchone()['count']
+            total=conn.execute('SELECT count(*) AS count FROM news_articles a JOIN LATERAL (SELECT * FROM news_summaries ns WHERE ns.article_id=a.id AND ns.language=%s LIMIT 1) s ON true WHERE '+conditions,params).fetchone()['count']
             items=conn.execute('''SELECT a.id,a.source_name,a.source_url,a.category,CASE WHEN a.publication_date_unknown THEN NULL ELSE a.published_at END AS published_at,
                 s.language,s.title,s.summary,s.ai_generated,s.model_name,s.key_points,s.generated_at,
                 CASE WHEN s.ai_generated THEN 'ready' ELSE COALESCE(j.status,'pending') END AS ai_status
-                FROM news_articles a JOIN LATERAL (SELECT * FROM news_summaries ns WHERE ns.article_id=a.id ORDER BY (ns.language=%s) DESC LIMIT 1) s ON true
+                FROM news_articles a JOIN LATERAL (SELECT * FROM news_summaries ns WHERE ns.article_id=a.id AND ns.language=%s LIMIT 1) s ON true
                 LEFT JOIN news_ai_jobs j ON j.article_id=a.id WHERE '''+conditions+
                 ' ORDER BY a.published_at DESC, a.id DESC LIMIT %s OFFSET %s',[*params,limit,offset]).fetchall()
         return {'total':total,'limit':limit,'offset':offset,'items':items}
@@ -84,5 +84,10 @@ def get_news(article_id:UUID,language:Language=Language.vi):
             # Reading cannot trigger unbounded paid calls; it only prioritizes a pre-existing bounded queue.
             if not article['ai_generated']:
                 conn.execute("INSERT INTO news_ai_jobs(article_id,priority_at) VALUES (%s,now()) ON CONFLICT(article_id) DO UPDATE SET priority_at=now() WHERE news_ai_jobs.status IN ('pending','failed') AND news_ai_jobs.attempts<3",[article_id])
+        if article['language'] != language.value:
+            article=dict(article,language=language.value,translation_pending=True,ai_generated=False,key_points=[],
+              title='Bài viết đang chờ bản dịch tiếng Việt' if language.value=='vi' else 'Article awaiting English translation',
+              summary='Bản dịch chưa sẵn sàng. Bạn có thể đọc nội dung gốc tại nguồn.' if language.value=='vi' else 'Translation is not ready. You can read the original at the source.')
         return article
     except DatabaseUnavailable:raise unavailable() from None
+

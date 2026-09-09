@@ -55,3 +55,26 @@ class NewsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class LocaleTests(unittest.TestCase):
+    def test_feed_requires_requested_language(self):
+        conn=MagicMock()
+        conn.execute.return_value.fetchone.return_value={'count':0}
+        conn.execute.return_value.fetchall.return_value=[]
+        with patch('news_api.connection') as context:
+            context.return_value.__enter__.return_value=conn
+            news_api.list_news(language=news_api.Language.vi,limit=12,offset=0)
+        sql,params=conn.execute.call_args.args
+        self.assertIn('AND ns.language=%s',sql)
+        self.assertNotIn('ORDER BY (ns.language=',sql)
+        self.assertEqual(params[0],'vi')
+    def test_detail_does_not_present_foreign_text_as_translation(self):
+        from uuid import uuid4
+        conn=MagicMock()
+        conn.execute.return_value.fetchone.return_value={'language':'en','title':'English title','summary':'English text','ai_generated':False}
+        with patch('news_api.connection') as context:
+            context.return_value.__enter__.return_value=conn
+            result=news_api.get_news(uuid4(),news_api.Language.vi)
+        self.assertTrue(result['translation_pending'])
+        self.assertNotEqual(result['title'],'English title')
+        self.assertFalse(result['ai_generated'])

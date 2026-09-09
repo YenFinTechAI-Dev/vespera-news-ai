@@ -32,8 +32,12 @@ def rewrite(original_title,excerpt,category,source_url):
             points=data.get('key_points')
             if not isinstance(points,list) or not 1<=len(points)<=4 or any(not isinstance(x,str) or not x.strip() for x in points):return None
             data['title']=data['title'][:400];data['summary']=data['summary'][:1200];data['key_points']=[x[:400] for x in points]
+        from language_check import check_answer_language
+        for lang in ('vi','en'):
+            check_answer_language({'paragraphs':[{'text':result[lang]['summary']}], 'limitations':' '.join(result[lang]['key_points'])},lang)
         record_success()
         return result
     except (requests.RequestException,ValueError,KeyError,TypeError,IndexError):
         log.warning('News AI summary unavailable; queue will retry')
         return None
+
