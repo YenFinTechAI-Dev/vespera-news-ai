@@ -1,6 +1,6 @@
 import {isAllowedOrigin} from '@/lib/request-origin';
 import {NextRequest,NextResponse} from 'next/server';
-import {createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
+import {createHmac,randomBytes} from 'node:crypto';
 export const dynamic='force-dynamic';
 export async function POST(req:NextRequest){
  if(!isAllowedOrigin(req))return NextResponse.json({detail:'Invalid origin'},{status:403});
@@ -9,7 +9,7 @@ export async function POST(req:NextRequest){
  const hash=(value:string)=>createHmac('sha256',key).update(value).digest('hex');
  const cookie=req.cookies.get('vesper_guest')?.value||'';
  const [oldId,signature]=cookie.split('.');
- const valid=/^[a-f0-9]{64}$/.test(oldId||'')&&/^[a-f0-9]{64}$/.test(signature||'')&&timingSafeEqual(Buffer.from(signature),Buffer.from(hash('cookie:'+oldId)));
+ const valid=/^[a-f0-9]{64}$/.test(oldId||'')&&/^[a-f0-9]{64}$/.test(signature||'')&&signature===hash('cookie:'+oldId);
  const id=valid?oldId:randomBytes(32).toString('hex');
  const finish=(data:unknown,status:number)=>{
    const response=NextResponse.json(data,{status,headers:{'Cache-Control':'no-store'}});
