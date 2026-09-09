@@ -11,7 +11,7 @@ from fastapi import APIRouter,HTTPException
 from pydantic import BaseModel,Field
 from typing import Literal
 from database import connection,DatabaseUnavailable
-from discovery_sources import aggregate,search_text
+from discovery_sources import aggregate,search_text,citation_author
 from rss_importer import plain,parse_date
 
 router=APIRouter(prefix='/news')
@@ -43,7 +43,8 @@ def parse_results(content):
 
 def fetch_results(query,language):
     topic=search_text(query)
-    params={'q':topic,'hl':'vi' if language=='vi' else 'en-US','gl':'VN' if language=='vi' else 'US','ceid':'VN:vi' if language=='vi' else 'US:en'}
+    author=citation_author(query)
+    params={'q':(('"'+topic+'" "'+author+'"') if author else topic),'hl':'vi' if language=='vi' else 'en-US','gl':'VN' if language=='vi' else 'US','ceid':'VN:vi' if language=='vi' else 'US:en'}
     with requests.get('https://news.google.com/rss/search',params=params,timeout=(5,15),stream=True) as response:
         response.raise_for_status();chunks=[];size=0
         for chunk in response.iter_content(65536):

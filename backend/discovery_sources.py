@@ -36,9 +36,16 @@ def search_text(query):
         return citation.group(1).strip(' .')
     return value
 
+def citation_author(query):
+    """Return the leading author from a conventional academic citation."""
+    value=' '.join(query.split()).strip()
+    match=re.match(r'(.+?)\s*\.\s*\(\d{4}\)\.', value)
+    return match.group(1).strip() if match else ''
+
 def web(query, language):
     topic=search_text(query)
-    search_query = chr(34)+topic+chr(34) if len(topic.split())>=4 else topic
+    author=citation_author(query)
+    search_query = (chr(34)+topic+chr(34)+' '+chr(34)+author+chr(34)) if author else (chr(34)+topic+chr(34) if len(topic.split())>=4 else topic)
     raw = read('https://www.bing.com/search', {'q':search_query,'format':'rss','setlang':language})
     if b'<!ENTITY' in raw.upper(): raise ValueError('Invalid feed')
     root = ET.fromstring(raw)
@@ -85,7 +92,9 @@ def aggregate(query, language, mode, news_fetch):
         for name in names:
             if i>=len(groups[name]):continue
             item=groups[name][i]
-            if item['url'] in seen or not safe_url(item['url']) or not relevant(query,item['title'],item.get('summary','')):continue
+            # Match the work title for citation-shaped queries; author metadata
+            # is used to narrow provider requests but should not hide the paper.
+            if item['url'] in seen or not safe_url(item['url']) or not relevant(search_text(query),item['title'],item.get('summary','')):continue
             seen.add(item['url']);item.setdefault('kind',name)
             item['summary']=item.get('summary') or item['title']
             item['publisher']=item.get('publisher') or name
