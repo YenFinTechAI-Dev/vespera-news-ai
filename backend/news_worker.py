@@ -58,6 +58,8 @@ async def automation_loop():
     loop=asyncio.get_running_loop();next_feed=0
     while True:
         try:
+            from feedback_discord import deliver_feedback
+            await asyncio.to_thread(deliver_feedback)
             if loop.time()>=next_feed:
                 result=await asyncio.to_thread(ingest_news)
                 with connection() as conn:
@@ -74,3 +76,4 @@ async def automation_loop():
             log.warning('News automation failed; retrying, existing articles retained')
             next_feed=max(next_feed,loop.time()+60)
         await asyncio.sleep(60)
+
