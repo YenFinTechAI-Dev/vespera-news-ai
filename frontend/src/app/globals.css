@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme tokens ──
+   [data-theme] is set on <html> by the inline script in layout.tsx before
+   hydration, and toggled at runtime by <ThemeToggle>. Tailwind color tokens
+   (base, surface, ink, stroke — see tailwind.config.ts) point at these
+   variables, so every existing `bg-base` / `text-ink` class in the app
+   already respects both themes without touching component code. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-base: #0a0a0b;
+  --color-surface: #111114;
+  --color-surface-2: #17171c;
+  --color-surface-3: #1d1d23;
+  --color-stroke: #26262e;
+  --color-ink: #f1f1ef;
+  --color-ink-muted: #9a9aa4;
+  --color-ink-faint: #5c5c66;
+  --scrollbar-track: var(--color-base);
+  --scrollbar-thumb: #26262e;
+  --scrollbar-thumb-hover: #34343e;
+  --selection-bg: rgba(0, 217, 163, 0.28);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-base: #faf9f6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f2f1ec;
+  --color-surface-3: #e9e7e0;
+  --color-stroke: rgba(10, 10, 11, 0.1);
+  --color-ink: #17171a;
+  --color-ink-muted: #55555f;
+  --color-ink-faint: #8a8a94;
+  --scrollbar-track: var(--color-base);
+  --scrollbar-thumb: #d8d6cf;
+  --scrollbar-thumb-hover: #c4c1b8;
+  --selection-bg: rgba(11, 165, 126, 0.22);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-ink);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--color-ink);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+:focus-visible {
+  outline: 2px solid #00d9a3;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+/* Shared restrained motion; reduced-motion overrides remain authoritative. */
+:where(button,a,input,textarea,select,.nr-card,.nr-panel) { transition-property:background-color,color,border-color,box-shadow,opacity,transform; transition-duration:180ms; transition-timing-function:cubic-bezier(.2,.7,.2,1); }
+.vs-settings-trigger { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:9px; color:inherit; background:transparent; border:1px solid var(--color-stroke); }
+.vs-settings-trigger:hover { background:var(--color-surface-2); }
+.vs-settings-dialog { padding:0; border:1px solid var(--color-stroke); border-radius:16px; width:min(380px,calc(100vw - 32px)); background:var(--color-surface); color:var(--color-ink); box-shadow:0 24px 80px #0004; }
+.vs-settings-dialog::backdrop { background:rgb(0 0 0 / .42); backdrop-filter:blur(4px); }
+.vs-settings-dialog>section { padding:22px; }
+.vs-settings-dialog header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+.vs-settings-dialog h2 { font-size:18px; font-weight:600; }
+.vs-settings-dialog header button { padding:6px; border-radius:8px; }
+.vs-settings-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.vs-settings-row strong { font-size:14px; }
+.vs-settings-row p { font-size:12px; color:var(--color-ink-muted); margin-top:5px; }
+@keyframes vs-enter { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes vs-backdrop { from { opacity:0; } to { opacity:1; } }
+@media (prefers-reduced-motion:no-preference) {
+ main { animation:vs-enter 280ms cubic-bezier(.2,.7,.2,1); }
+ dialog[open] { animation:vs-enter 200ms ease-out; }
+ dialog[open]::backdrop { animation:vs-backdrop 180ms ease-out; }
+ .nr-card { transition:transform 220ms ease,border-color 220ms ease,box-shadow 220ms ease; }
+ .vc-sidebar,.vc-main { animation:vs-enter 240ms ease-out; }
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+ .nr-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px #0000000d; }
+ .vs-settings-trigger:hover svg { transform:rotate(25deg); }
+ .vs-settings-trigger svg { transition:transform 220ms ease; }
+}
