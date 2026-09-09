@@ -10,10 +10,11 @@ class ProviderBackoffTests(unittest.TestCase):
         with patch('news_provider_guard.connection') as db:
             news_provider_guard.record_failure(429)
             args=db.return_value.__enter__.return_value.execute.call_args.args
-            self.assertEqual(args[1],['rate_limited',429,30,'zai'])
+            self.assertEqual(args[1],['rate_limited',429,30,'huggingface'])
             self.assertNotIn('news_ai_usage',args[0])
     def test_invalid_key_backs_off_longer(self):
         with patch('news_provider_guard.connection') as db:
             news_provider_guard.record_failure(401)
-            self.assertEqual(db.return_value.__enter__.return_value.execute.call_args.args[1],['authorization',401,360,'zai'])
+            self.assertEqual(db.return_value.__enter__.return_value.execute.call_args.args[1],['authorization',401,360,'huggingface'])
 if __name__=='__main__':unittest.main()
+

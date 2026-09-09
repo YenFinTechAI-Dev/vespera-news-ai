@@ -30,7 +30,7 @@ class ResearchTests(unittest.TestCase):
         sources=[{'number':1,'coverage':'excerpt'},{'number':2,'coverage':'excerpt'}]
         response=MagicMock(status_code=200)
         response.json.return_value={'choices':[{'finish_reason':'stop','message':{'content':'{"paragraphs":[{"text":"Supported synthesis","sources":[1,2]}],"limitations":"Excerpts only"}'}}]}
-        with patch.object(api,'sources_for',return_value=sources),patch.object(api,'connection') as connection,patch.object(api,'provider_state',return_value=None),patch.object(api,'record_success'),patch.dict(api.os.environ,{'NEWS_ZAI_API_KEY':'test-only'}),patch.object(api.requests,'post',return_value=response):
+        with patch.object(api,'sources_for',return_value=sources),patch.object(api,'connection') as connection,patch.object(api,'provider_state',return_value=None),patch.object(api,'record_success'),patch.dict(api.os.environ,{'AI_PROVIDER':'huggingface','HF_TOKEN':'test-only'}),patch.object(api.requests,'post',return_value=response):
             conn=connection.return_value.__enter__.return_value
             conn.execute.return_value.fetchone.side_effect=[None,{'user_id':'id'},{'requests':1},{'attempts':1}]
             result=api.run(api.Question(query='Education',language='en',source_ids=[uuid4()]),{'id':uuid4()})
@@ -63,3 +63,4 @@ class GuestResearchTests(unittest.TestCase):
             self.assertEqual(error.exception.status_code,429)
             self.assertEqual(conn.execute.call_args.args[1][1],5)
             completion.assert_not_called()
+

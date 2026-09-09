@@ -26,3 +26,14 @@ class HuggingFaceTests(unittest.TestCase):
             call=connection.return_value.__enter__.return_value.execute.call_args
             self.assertIn('provider_name=%s',call.args[0])
             self.assertEqual(call.args[1],['huggingface'])
+
+class ProviderSelectionTests(unittest.TestCase):
+    def test_default_is_huggingface(self):
+        with patch.dict(os.environ,{},clear=True):
+            self.assertEqual(ai_provider.provider(),'huggingface')
+            self.assertFalse(ai_provider.available())
+    def test_zai_configuration_cannot_send_requests(self):
+        with patch.dict(os.environ,{'AI_PROVIDER':'zai','ZAI_API_KEY':'old'},clear=True),patch.object(ai_provider.requests,'post') as post:
+            self.assertFalse(ai_provider.available())
+            with self.assertRaises(ValueError):ai_provider.completion({'messages':[]})
+            post.assert_not_called()
