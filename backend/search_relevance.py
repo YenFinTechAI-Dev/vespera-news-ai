@@ -11,6 +11,11 @@ def relevant(query,title,excerpt):
     required=words(query)-STOP
     if not required:return True
     found=words(title+' '+excerpt)
+    # Preserve named entities and ticker-like anchors. A broad word such as
+    # “ngân hàng” must not make an unrelated banking paper match “MB Bank”.
+    anchors={token for token in required if len(token)<=3}
+    if len(required)>=3 and anchors and not anchors.issubset(found):
+        return False
     # Reject single-word dictionary matches for multi-keyword topics.
     threshold=1 if len(required)==1 else max(2,(len(required)+1)//2)
     return len(required & found)>=threshold
