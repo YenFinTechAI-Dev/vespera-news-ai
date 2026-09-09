@@ -29,6 +29,8 @@ def completion(payload,key='',stream=False,timeout=None):
     if local():
         url=os.getenv('OLLAMA_BASE_URL','http://127.0.0.1:11434').rstrip('/')+'/v1/chat/completions'
         headers={'Content-Type':'application/json'}
+        token=os.getenv('OLLAMA_API_KEY','').strip()
+        if token:headers['Authorization']='Bearer '+token
         data.setdefault('temperature',0.2)
     elif provider()=='huggingface':
         token=os.getenv('HF_TOKEN','').strip()
@@ -38,5 +40,6 @@ def completion(payload,key='',stream=False,timeout=None):
         data.setdefault('temperature',0.2)
     else:raise ValueError('Unsupported AI provider')
     return requests.post(url,headers=headers,json=data,stream=stream,timeout=timeout or ((5,180) if local() else (10,90)),allow_redirects=False)
+
 
 

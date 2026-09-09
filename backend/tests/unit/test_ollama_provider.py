@@ -16,3 +16,11 @@ class OllamaTests(unittest.TestCase):
     def test_local_requires_structured_output(self):
         with patch.dict(ai_provider.os.environ,{'AI_PROVIDER':'ollama'}):
             self.assertEqual(ai_provider.json_format('summary')['type'],'json_schema')
+
+class AuthenticatedGatewayTests(unittest.TestCase):
+    def test_gateway_key_is_sent_only_to_configured_ollama(self):
+        with patch.dict(ai_provider.os.environ,{'AI_PROVIDER':'ollama','OLLAMA_API_KEY':'test-gateway','OLLAMA_BASE_URL':'https://gateway.example'}),patch.object(ai_provider.requests,'post') as post:
+            ai_provider.completion({'messages':[]})
+            self.assertEqual(post.call_args.kwargs['headers']['Authorization'],'Bearer test-gateway')
+            self.assertEqual(post.call_args.args[0],'https://gateway.example/v1/chat/completions')
+            self.assertFalse(post.call_args.kwargs['allow_redirects'])
