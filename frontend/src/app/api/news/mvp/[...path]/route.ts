@@ -1,10 +1,11 @@
+import {isAllowedOrigin} from '@/lib/request-origin';
 import {NextRequest,NextResponse} from 'next/server';
 export const dynamic='force-dynamic';
 async function proxy(req:NextRequest,{params}:{params:{path:string[]}}){
  const path=params.path.join('/');
  const allowed:Record<string,string[]>={sources:['GET'],stories:['GET'],interests:['GET','POST','DELETE'],digest:['GET'],email:['GET','PUT'],ask:['POST']};
  if(!allowed[path]?.includes(req.method))return NextResponse.json({detail:'Not found'},{status:404});
- if(req.method!=='GET'&&req.headers.get('origin')!==req.nextUrl.origin)return NextResponse.json({detail:'Invalid origin'},{status:403});
+ if(req.method!=='GET'&&!isAllowedOrigin(req))return NextResponse.json({detail:'Invalid origin'},{status:403});
  const publicRoute=path==='sources'||path==='stories';
  const session=req.cookies.get('vesper_session')?.value;
  if(!publicRoute&&!session)return NextResponse.json({detail:'Sign in required'},{status:401});
@@ -17,3 +18,4 @@ async function proxy(req:NextRequest,{params}:{params:{path:string[]}}){
  }catch{return NextResponse.json({detail:'News service unavailable'},{status:503})}
 }
 export {proxy as GET,proxy as POST,proxy as PUT,proxy as DELETE};
+

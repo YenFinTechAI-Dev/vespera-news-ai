@@ -1,7 +1,8 @@
+import {isAllowedOrigin} from '@/lib/request-origin';
 import {NextRequest,NextResponse} from 'next/server';
 import {createHash} from 'node:crypto';
 export async function POST(req:NextRequest){
- if(req.headers.get('origin')!==req.nextUrl.origin)return NextResponse.json({detail:'Invalid origin'},{status:403});
+ if(!isAllowedOrigin(req))return NextResponse.json({detail:'Invalid origin'},{status:403});
  const key=process.env.CHAT_PROXY_TOKEN;
  if(!key)return NextResponse.json({detail:'Unavailable'},{status:503});
  try{const body=await req.text();if(body.length>12000)return NextResponse.json({detail:'Too large'},{status:413});
@@ -10,3 +11,4 @@ export async function POST(req:NextRequest){
  return NextResponse.json(await r.json(),{status:r.status});
  }catch{return NextResponse.json({detail:'Unavailable'},{status:503})}
 }
+
