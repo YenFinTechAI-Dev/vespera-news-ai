@@ -3,7 +3,7 @@ import ai_provider
 import hashlib
 import json
 import os
-from uuid import UUID
+from uuid import UUID, uuid5, NAMESPACE_URL
 import requests
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -47,11 +47,22 @@ def sources_for(ids):
           'excerpt':excerpt[:1500],'coverage':'excerpt' if sufficient else 'title_only'})
     return result
 
+def guest_identity(guest, client):
+    import re
+    if not guest or not re.fullmatch(r'[a-f0-9]{64}',guest) or not client or not re.fullmatch(r'[a-f0-9]{64}',client):
+        raise HTTPException(401,'Guest identity required')
+    user_id=uuid5(NAMESPACE_URL,'vespera-guest:'+guest)
+    with connection() as conn:
+        conn.execute("INSERT INTO app_users(id,name,email,password_hash) VALUES(%s,'News guest',%s,%s) ON CONFLICT(id) DO NOTHING",[user_id,guest+'@guest.invalid','00'*16+':'+'00'*64])
+    return {'id':user_id,'guest':True,'client':client}
+
 @router.post('/synthesize')
-def synthesize(body:Question,x_chat_token:str|None=Header(None),x_session_token:str|None=Header(None)):
-    gateway(x_chat_token);user=identity(x_session_token)
-    throttle('research:'+str(user['id']))
-    try:return run(body,user)
+def synthesize(body:Question,x_chat_token:str|None=Header(None),x_session_token:str|None=Header(None),x_guest_key:str|None=Header(None),x_client_key:str|None=Header(None)):
+    gateway(x_chat_token)
+    try:
+        user=identity(x_session_token) if x_session_token else guest_identity(x_guest_key,x_client_key)
+        throttle('research:'+str(user['id']))
+        return run(body,user)
     except DatabaseUnavailable:raise HTTPException(503,'Kho nghiên cứu tạm chưa sẵn sàng.') from None
 
 def run(body,user):
@@ -73,10 +84,14 @@ def run(body,user):
           WHERE research_answers.status='failed' OR (research_answers.status='processing' AND research_answers.updated_at<now()-interval '3 minutes') RETURNING user_id""",[user['id'],fingerprint]).fetchone()
         if not lease:return dict(base,status='processing',detail='Bản tổng hợp đang được xử lý. Kiểm tra lại sau ít phút.')
         usage=conn.execute("""INSERT INTO app_usage(user_id,day,requests) VALUES(%s,(now() AT TIME ZONE 'Asia/Bangkok')::date,1)
-          ON CONFLICT(user_id,day) DO UPDATE SET requests=app_usage.requests+1 WHERE app_usage.requests<%s RETURNING requests""",[user['id'],DAILY_LIMIT]).fetchone()
+          ON CONFLICT(user_id,day) DO UPDATE SET requests=app_usage.requests+1 WHERE app_usage.requests<%s RETURNING requests""",[user['id'],5 if user.get('guest') else DAILY_LIMIT]).fetchone()
         if not usage:raise HTTPException(429,'Đã hết lượt AI hôm nay. Hạn mức đặt lại lúc 00:00 UTC+7.')
+        if user.get('guest'):
+            ip_usage=conn.execute("""INSERT INTO research_guest_ip_usage(key,day,requests) VALUES(%s,(now() AT TIME ZONE 'Asia/Bangkok')::date,1)
+              ON CONFLICT(key,day) DO UPDATE SET requests=research_guest_ip_usage.requests+1 WHERE research_guest_ip_usage.requests<20 RETURNING requests""",[user['client']]).fetchone()
+            if not ip_usage:raise HTTPException(429,'Guest network daily limit reached. Reset: 00:00 UTC+7.')
         budget=conn.execute("""INSERT INTO news_ai_usage(day,attempts) VALUES((now() AT TIME ZONE 'Asia/Bangkok')::date,1)
-          ON CONFLICT(day) DO UPDATE SET attempts=news_ai_usage.attempts+1 WHERE news_ai_usage.attempts<48 RETURNING attempts""").fetchone()
+          ON CONFLICT(day) DO UPDATE SET attempts=news_ai_usage.attempts+1 WHERE news_ai_usage.attempts<%s RETURNING attempts""",[max(1,int(os.getenv("NEWS_AI_DAILY_LIMIT","200")))]).fetchone()
         if not budget:raise HTTPException(429,'Hạn mức AI dùng chung đã hết. Đặt lại lúc 00:00 UTC+7; bạn vẫn có thể đọc và xuất nguồn.')
     try:
         response=ai_provider.completion({
