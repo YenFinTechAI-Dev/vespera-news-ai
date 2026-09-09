@@ -6,6 +6,7 @@ import ipaddress
 import json
 import xml.etree.ElementTree as ET
 import requests
+import re
 from rss_importer import plain
 from search_relevance import relevant
 
@@ -27,8 +28,17 @@ def safe_url(value):
         except ValueError: return '.' in url.hostname
     except ValueError: return False
 
+def search_text(query):
+    """Extract the work title from a citation while retaining ordinary queries."""
+    value=' '.join(query.split()).strip()
+    citation=re.search(r'\)\.\s*(.+?)(?:[,.]\s*(?:Tạp chí|Journal|Proceedings|Conference)\b|\.$)',value,flags=re.I)
+    if citation and len(citation.group(1).split())>=4:
+        return citation.group(1).strip(' .')
+    return value
+
 def web(query, language):
-    search_query = chr(34)+query+chr(34) if 2 <= len(query.split()) <= 4 and chr(34) not in query else query
+    topic=search_text(query)
+    search_query = chr(34)+topic+chr(34) if len(topic.split())>=4 else topic
     raw = read('https://www.bing.com/search', {'q':search_query,'format':'rss','setlang':language})
     if b'<!ENTITY' in raw.upper(): raise ValueError('Invalid feed')
     root = ET.fromstring(raw)
@@ -42,7 +52,7 @@ def web(query, language):
     return results
 
 def research(query, language):
-    data = json.loads(read('https://api.crossref.org/works', {'query':query,'rows':10,'sort':'relevance','select':'DOI,title,publisher,abstract,published,author'}))
+    data = json.loads(read('https://api.crossref.org/works', {'query.bibliographic':search_text(query),'rows':10,'sort':'relevance','select':'DOI,title,publisher,abstract,published,author'}))
     results=[]
     for item in data['message']['items']:
         title=plain(' '.join(item.get('title',[])))[:400]
