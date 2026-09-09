@@ -59,7 +59,7 @@ def web(query, language):
     return results
 
 def research(query, language):
-    data = json.loads(read('https://api.crossref.org/works', {'query.bibliographic':search_text(query),'rows':10,'sort':'relevance','select':'DOI,title,publisher,abstract,published,author'}))
+    data = json.loads(read('https://api.crossref.org/works', {'query.bibliographic':search_text(query),'rows':20,'sort':'relevance','select':'DOI,title,publisher,abstract,published,author'}))
     results=[]
     for item in data['message']['items']:
         title=plain(' '.join(item.get('title',[])))[:400]
@@ -71,12 +71,13 @@ def research(query, language):
             published=datetime(*(parts+[1]*(3-len(parts))),tzinfo=timezone.utc)
             if published>datetime.now(timezone.utc): continue
         except (KeyError,TypeError,ValueError): pass
-        results.append(dict(url='https://doi.org/'+quote(doi,safe='/'),title=title,summary=plain(item.get('abstract',''))[:900],publisher=item.get('publisher','Crossref'),kind='research',published=published,authors=[' '.join(filter(None,[a.get('given'),a.get('family')])) for a in item.get('author',[])[:8]]))
+        authors=[' '.join(filter(None,[a.get('given'),a.get('family')])) for a in item.get('author',[])[:8]]
+        results.append(dict(url='https://doi.org/'+quote(doi,safe='/'),title=title,summary=plain(item.get('abstract',''))[:900],publisher=item.get('publisher','Crossref'),kind='research',published=published,authors=authors))
     return results
 
 def aggregate(query, language, mode, news_fetch):
     funcs={'news':news_fetch,'web':web,'research':research}
-    names=list(funcs) if mode=='all' else [mode]
+    names=(['research','news','web'] if mode=='all' and citation_author(query) else (list(funcs) if mode=='all' else [mode]))
     result=[];status={};seen=set()
     with ThreadPoolExecutor(max_workers=3) as pool:
         futures={name:pool.submit(funcs[name],query,language) for name in names}
