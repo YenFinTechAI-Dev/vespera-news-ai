@@ -17,7 +17,7 @@ from rss_importer import plain,parse_date
 router=APIRouter(prefix='/news')
 cache=OrderedDict();lock=threading.Lock();semaphore=threading.BoundedSemaphore(2);attempts=[]
 class Search(BaseModel):
-    query:str=Field(min_length=2,max_length=120)
+    query:str=Field(min_length=2,max_length=500)
     language:Literal['vi','en']='vi'
     mode:Literal['all','news','web','research']='all'
 

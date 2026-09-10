@@ -13,5 +13,6 @@ class DiscoveryTests(unittest.TestCase):
     def test_entities_rejected(self):
         with self.assertRaises(ValueError):parse_results(b'<!DOCTYPE rss [<!ENTITY x "x">]><rss/>')
     def test_query_size_is_bounded(self):
-        with self.assertRaises(ValidationError):Search(query='x'*121)
+        self.assertEqual(len(Search(query='x'*500).query),500)
+        with self.assertRaises(ValidationError):Search(query='x'*501)
 if __name__=='__main__':unittest.main()
